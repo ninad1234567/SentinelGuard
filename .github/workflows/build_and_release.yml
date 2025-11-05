@@ -1,0 +1,75 @@
+name: Build and Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.2.0'
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Analyze code
+      run: flutter analyze
+
+    - name: Build APK
+      run: flutter build apk --release
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ## What's New
+
+          - Automated APK build from commit ${{ github.sha }}
+          - Full release build with optimizations
+          - Ready for installation on Android devices
+
+          ## Installation
+
+          1. Download the APK file from this release
+          2. Enable "Install from Unknown Sources" in Android settings
+          3. Open the downloaded APK file and follow installation prompts
+          4. Launch the app and complete the setup process
+
+          ## System Requirements
+
+          - Android 8.0 (API 26) or higher
+          - 50MB free storage space
+          - 2GB RAM minimum
+        draft: false
+        prerelease: false
+
+    - name: Upload APK
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/app/outputs/flutter-apk/app-release.apk
+        asset_name: sentinel-guard-${{ github.ref_name }}.apk
+        asset_content_type: application/vnd.android.package-archive
